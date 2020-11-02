@@ -1,4 +1,4 @@
-# cm_automation_tool
+# mc_automation_tool
 
 ## How To Install
 1) Python
