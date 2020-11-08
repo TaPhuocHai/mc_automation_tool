@@ -22,7 +22,7 @@ OUTPUT_DIR_NAME = 'output'
 # Constants, global variables
 # NEW_DATA represent the data we want to check quality and do cleaning up
 # You should have such file in input directory
-NEW_DATA = "" # you should change name accordingly, excel or csv is okay!
+NEW_DATA = "Edit_List_Email__Oct2020.xlsx" # you should change name accordingly, excel or csv is okay!
 
 # Credentials
 CSE_EMAIL = os.getenv("CSE_EMAIL") 
@@ -30,6 +30,50 @@ CSE_PASSWORD = os.getenv("CSE_PASSWORD")
 DV_API_KEY = os.getenv("DV_API_KEY")
 HIIQ_API_KEY = os.getenv("HIIQ_API_KEY")
 HIIQ_URL = os.getenv("HIIQ_URL")
+
+def getDvScore(path_to_file):
+    spinner = Halo(text="Checking dv score", spinner='dots', text_color="cyan")
+    spinner.start()
+
+    file = path_to_file #NEW_DATA.split(".")[0] + "_to_cse2_out.csv"
+    url = 'https://dv3.datavalidation.com/api/v2/user/me/list/create_upload_url/'
+    params = '?name=' + file + '&email_column_index=0&has_header=0&start_validation=false'     
+    headers = { 'Authorization': 'Bearer ' + DV_API_KEY }
+    s = requests.Session()
+    a = requests.adapters.HTTPAdapter(max_retries=3)
+    s.mount("https://", a)    
+    res = s.get(url+params, headers=headers)
+    upload_csv_url = res.json()    
+    files = {
+        'file': open(file, 'rb')
+    }
+    
+    list_id = s.post(upload_csv_url, headers=headers, files=files)
+    time.sleep(10)
+    dv_result_url = 'https://dv3.datavalidation.com/api/v2/user/me/list/' + list_id.json()    
+    dv_result = s.get(dv_result_url, headers=headers).json()
+    while dv_result['status_value'] == 'PRE_VALIDATING':
+        dv_result = requests.get(dv_result_url, headers=headers).json()
+        spinner.info("Status percent complete: " + str(dv_result['status_percent_complete']))
+        time.sleep(5) # sleep 5 seconds
+    try:
+        dv_result = requests.get(dv_result_url, headers=headers).json()
+        percent = lambda count: round((count / dv_result['subscriber_count']),2) * 100
+
+        spinner.succeed("Done checking dv score")
+        print("The grade summary is: ")
+        for score_name, score_value in dv_result['grade_summary'].items():
+            print('%-3s : ' %(score_name) + str(percent(score_value)))
+    except:
+        if (dv_result['subscriber_count'] == 0):
+            print("Empty list of emails were sent for dv validation!")
+            print("Perhaps no new email to check dv?")
+            print("Program terminated")
+            return 0
+        else:
+            print("Something goes wrong")
+
+    spinner.stop()
 
 def clean_data(current_users):
     global NEW_DATA
@@ -92,14 +136,15 @@ def clean_data(current_users):
     good_emails = merged[merged['_merge']=='right_only']
     print("Number of user after remove blacklisted domain: ", len(good_emails))
     good_emails = good_emails['Email']
-    good_emails.to_csv(OUTPUT_DIR_NAME + "/" + file_name + "_to_cse2.csv", index=False, header=True)
+    result_file = OUTPUT_DIR_NAME + "/" + file_name + "_to_hyatt.csv"
+    good_emails.to_csv(result_file, index=False, header=True)
     bad_emails  = merged[merged['_merge']=='both']
     bad_emails.to_csv(OUTPUT_DIR_NAME + "/" + file_name + "_blacklisted.csv", index=False, header=True, columns=["Email", "Domain"])
-
+    return result_file
+    
 
 if __name__ == "__main__":
     # turn on vpn
-    
     ""
     connectVPN()
     time.sleep(10)
@@ -117,22 +162,25 @@ if __name__ == "__main__":
 
     # ## Fetching the contacts    
     t = Timer(name="class", text="Time to fetch the contacts: {seconds:.1f} seconds")
-    spinner = Halo(text="Fetching contacts via API ..", spinner='dots', text_color="grey")
+    spinner = Halo(text="Fetching contacts via API ..", spinner='dots', text_color="cyan")
     spinner.start()        
     t.start()
     
     download_mc_db(api_key, default_list_id) # Disable this if don't want to re-fetch
 
     spinner = spinner.succeed(text="Downloaded all contacts")
+    spinner.stop()
     t.stop()
-
+    spinner = Halo(spinner='dots', text_color="cyan")
     spinner.start("Processing the data")
-  
-    
+        
     mc_data = read_mc_db()
-    clean_data(mc_data)
-
+    result_file = clean_data(mc_data)
     spinner.succeed(text="Done processing the data")
+    spinner.stop()
+    getDvScore(result_file)
+
+    
     spinner.succeed("Program completed!")
 
     # This block can be commented/removed if you don't want to connect VPN again
