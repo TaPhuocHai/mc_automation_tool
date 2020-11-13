@@ -13,4 +13,5 @@ input/*
 output/*
 !input/.gitkeep
 !output/.gitkeep
+!MC_DATA/.gitkeep
 MC_DATA/*

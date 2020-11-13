@@ -22,11 +22,9 @@ OUTPUT_DIR_NAME = 'output'
 # Constants, global variables
 # NEW_DATA represent the data we want to check quality and do cleaning up
 # You should have such file in input directory
-NEW_DATA = "Edit_List_Email__Oct2020.xlsx" # you should change name accordingly, excel or csv is okay!
+NEW_DATA = "" # you should change name accordingly, excel or csv is okay!
 
 # Credentials
-CSE_EMAIL = os.getenv("CSE_EMAIL") 
-CSE_PASSWORD = os.getenv("CSE_PASSWORD") 
 DV_API_KEY = os.getenv("DV_API_KEY")
 HIIQ_API_KEY = os.getenv("HIIQ_API_KEY")
 HIIQ_URL = os.getenv("HIIQ_URL")
@@ -35,7 +33,7 @@ def getDvScore(path_to_file):
     spinner = Halo(text="Checking dv score", spinner='dots', text_color="cyan")
     spinner.start()
 
-    file = path_to_file #NEW_DATA.split(".")[0] + "_to_cse2_out.csv"
+    file = path_to_file
     url = 'https://dv3.datavalidation.com/api/v2/user/me/list/create_upload_url/'
     params = '?name=' + file + '&email_column_index=0&has_header=0&start_validation=false'     
     headers = { 'Authorization': 'Bearer ' + DV_API_KEY }
@@ -144,8 +142,7 @@ def clean_data(current_users):
     
 
 if __name__ == "__main__":
-    # turn on vpn
-    ""
+    # turn on vpn    
     connectVPN()
     time.sleep(10)
     # Select account    
@@ -159,8 +156,7 @@ if __name__ == "__main__":
     # turn off vpn
     disconnectVPN()
 
-
-    # ## Fetching the contacts    
+    ### Fetching the contacts    
     t = Timer(name="class", text="Time to fetch the contacts: {seconds:.1f} seconds")
     spinner = Halo(text="Fetching contacts via API ..", spinner='dots', text_color="cyan")
     spinner.start()        
